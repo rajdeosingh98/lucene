@@ -1,0 +1,2 @@
+http://localhost:8983/solr/mbartists/select?q={!join from=r_a_id
+to=a_id fromIndex=mbreleases}r_id:139850&fl=type,a_id
