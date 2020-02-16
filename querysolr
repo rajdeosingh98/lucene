@@ -1,2 +1,25 @@
 http://localhost:8983/solr/mbartists/select?q={!join from=r_a_id
 to=a_id fromIndex=mbreleases}r_id:139850&fl=type,a_id
+
+
+• Boost query parser: Like DisMax's boost parameter, this query parser lets
+you specify a function that is multiplied to another query. The query string
+is parsed by the Lucene query parser. Here's an example query:
+q={!boost b=log(t_trm_lookups)}t_name:Daydreaming
+•
+Func query parser: The func query parser
+will parse the function and expose it as a query matching all documents and
+return the function's output as the score. Here is an example URL snippet:
+q={!func}log(t_trm_lookups)&fl=t_trm_lookups,score
+•
+Frange (function range) query parser: This query parser is similar to the
+func query parser, but it also filters documents based on the resulting score
+being in a specified range, instead of returning all documents. It takes a l
+parameter for the lower bound, a u parameter for the upper bound, and incl
+and incu Boolean parameters to specify whether the lower or upper bounds
+are inclusive—which they are by default. The parameters are optional, but
+you will specify at least one of u or l for meaningful effect. 
+
+Here's an example
+URL snippet from its documentation:
+fq={!frange l=0 u=2.2}sum(user_ranking,editor_ranking)
