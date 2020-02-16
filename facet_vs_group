@@ -1,0 +1,79 @@
+Result grouping and faceting are in essence two different search features. 
+Faceting counts the number of hits for specific field values matching the current query. 
+Result grouping groups documents together with a common property and places these documents under a group. 
+These groups are used as the hits in the search result. 
+Usually result grouping and faceting are used together and a lot of times the results get misunderstood.
+
+The main reason is that when using grouping people expect that a hit is represented by a group. 
+Faceting isn’t aware of groups and thus the computed counts represent documents and not groups.
+This different behaviour can be very confusion. A lot of questions on the Solr user mailing list are about this exact confusion.
+
+In the case that result grouping is used with faceting users expect grouped facet counts. 
+What does this mean? This means that when counting the number of matches for a specific field value the grouped faceting should check whether the group a document belongs to isn’t already counted before. This is best illustrated with some example documents.
+
+item_id	product_id	product_name	product_color	product_size
+1	  1	  The blue jacket 	DarkBlue  	S
+2	  1	  The blue jacket 	DarkBlue  	M
+3 	1	  The blue jacket	  DarkBlue  	L
+4 	2	  The blue blouse	  RegularBlue	S
+5 	2	  The blue blouse 	RegularBlue	M
+6	  2	  The blue blouse	  DarkBlue	  L
+
+Lets say we query for all, facet by color field and group by product_id. Use faceting as it is we would have the following facet counts:
+
+DarkBlue – 4
+RegularBlue – 2
+When we would use grouped faceting we would have the following counts:
+
+DarkBlue – 2
+RegularBlue – 1
+The facet counts computed by the grouped faceting is actually what most end users expect. 
+The good news is that support for grouped faceting was recently added to Solr and Lucene and will be included in their 4.0 release.
+Unfortunately grouped facets are more expensive to compute than normal facets due to the fact that it needs to keep track of which groups have already been counted for a specific facet value.
+
+Grouped facets in Solr
+In Solr grouped faceting builds further on the existing faceting parameters and can just be enabled by using the following parameter as is described on the Solr wiki:
+group.facet=true
+When enabled all the already specified field facets (facet.field parameters) will be computed as grouped facets. Both single and multivalued field facets are supported. Other facet types like range facets aren’t supported yet.
+
+Grouped facets in Lucene
+Grouped facets are implemented as Lucene collector in the Lucene grouping module. 
+The following code example shows how grouped facets can be used:
+
+1
+boolean facetFieldMultivalued = false;
+2
+BytesRef facetPrefix = null
+3
+AbstractGroupFacetCollector groupedAirportFacetCollector = TermGroupFacetCollector.createTermGroupFacetCollector(groupField, facetField, facetFieldMultivalued, facetPrefix, 128);
+4
+searcher.search(query, groupedAirportFacetCollector); // Computing the grouped facet counts
+5
+boolean orderFacetEntriesByCount = true;
+6
+TermGroupFacetCollector.GroupedFacetResult airportResult = groupedAirportFacetCollector.mergeSegmentResults(offset + limit, minCount, orderFacetEntriesByCount);
+7
+System.out.printf("Total facet hit count" + airportResult.getTotalCount());
+8
+System.out.printf("Total facet hit missing count" + airportResult.getTotalMissingCount());
+9
+List&lt;AbstractGroupFacetCollector.FacetEntry&gt; facetEntries = airportResult.getFacetEntries(offset, limit);
+10
+for (AbstractGroupFacetCollector.FacetEntry facetEntry : facetEntries) {
+11
+  // render facet entries
+12
+}
+As you can see in the above code sample there are a number of options that can be specified:
+
+groupField – The field to group by.
+facetField – The field to count grouped facets for.
+facetFieldMultivalued – Whether the facetField has multiple values per document. Computing facet counts for fields with maximum one value per document is faster than computing for fields having more than one value per document.
+facetPrefix – Count only values that start with the prefix. If the prefix is null all values are counted that match the query.
+offset – The offset to start to include facet entries.
+limit – The number of facet entries to include from the offset.
+minCount – The minimum count a facet entry needs to have to be included in the facet entries.
+orderFacetEntriesByCount – Whether to order the facet entries by count.
+Not all options are required to to be used. There is also a doc values based implementation for grouped facets that is included in the grouping module. This implementation isn’t used by Solr.
+
+As you can see it is quite easy to use grouped faceting from both Solr and Lucene. Did you try out this new feature? If so let us know how the grouped faceting is working in your Lucene app or Solr setup by posting comment!
